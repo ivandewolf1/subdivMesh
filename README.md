@@ -1,6 +1,7 @@
 # graded subdivision meshes
 
 this document will soon be written in full.
+If nothing else, jump to the bottom and click on the youtube link.
 
 ## compiling
 ***These instructions are for linux***
@@ -20,7 +21,7 @@ but, it may be easist to simply copy those 3 files in.
 
 ### step 2
 #### setup Houdini
-this has a samply SOP for Houdini as it's testbed. 
+this has a sample SOP for Houdini as it's testbed. 
 A free version of Houdini is available here:
 https://www.sidefx.com/
 
@@ -53,4 +54,5 @@ prompt$ ls ~/houdini17.5/dso
 SOP_SubtriBasic.so
 ```
 this youtube video will show you how to see if the node loads into Houdini:
+
 https://youtu.be/Sw7N1YM6Dnc
