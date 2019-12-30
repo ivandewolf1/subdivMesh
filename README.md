@@ -12,9 +12,9 @@ https://github.com/ivandewolf1/lwtv
 
 I made a sympolic link to the .h files:
 ```
-ln -s ../lwtv/src/tvec3.h  src/lwtv/tvec3.h 
-ln -s ../lwtv/src/tmat3.h  src/lwtv/tmat3.h 
-ln -s ../lwtv/src/tmat4.h  src/lwtv/tmat4.h
+ln -s /job/git/lwtv/src/tvec3.h  src/lwtv/tvec3.h 
+ln -s /job/git/lwtv/src/tmat3.h  src/lwtv/tmat3.h 
+ln -s /job/git/lwtv/src/tmat4.h  src/lwtv/tmat4.h
 ``` 
 but, it may be easist to simply copy those 3 files in.
 
