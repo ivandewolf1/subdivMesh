@@ -3,7 +3,6 @@ using namespace subTri;
 
 // to do:
 // switch from mean centers to incenters for all computation
-// pass N and incenters from computeCenters() to child tris
 // run timing test in subdivide()
 // investigate threading
 // refactor connectSubtri()
@@ -13,6 +12,7 @@ template <typename T>
 void
 subdividedMesh<T>::exampleSubdivide(int max, double targetRadius, double sphRad, double resmult)
 {
+  srand(3.1415926535);//why not
   for(int i = 0; i<max; ++i){
     exampleTriTest(targetRadius, resmult);
     if(splitSet.size() == 0)return;
@@ -20,8 +20,8 @@ subdividedMesh<T>::exampleSubdivide(int max, double targetRadius, double sphRad,
     makePoints();
     exampleMovePoints(sphRad);
     buildChildGroup();
-	  splitSet.clear();// all tri-N needs to be built by this point
-	  //computeNormals()
+    splitSet.clear();// all tri-N needs to be built by this point
+    //computeNormals()
   }
 }
 
@@ -31,13 +31,12 @@ subdividedMesh<T>::exampleTriTest(double targetRadius, double resmult)
 {
   typename vector<subtri<T>*>::iterator tri;
   for (tri = childGroup.begin(); tri != childGroup.end(); ++tri){
-  bool split = (*tri)->testSplit(pointList, targetRadius, resmult);
-  if(split){
-    (*tri)->insertVertNeighbors(subtriList, pointList, splitSet);
-  }else{
-    if((*tri)->splitState == NEW_TRI)
-    (*tri)->splitState = NOT_SPLIT;
-  }
+    bool split = (*tri)->testSplit(pointList, targetRadius, resmult);
+    if(split){
+      (*tri)->insertVertNeighbors(subtriList, pointList, splitSet);
+    }else{
+      if((*tri)->splitState == NEW_TRI) (*tri)->splitState = NOT_SPLIT;
+    }
   }
 }
 
@@ -53,6 +52,21 @@ subdividedMesh<T>::exampleMovePoints(double radius)// loops over newPoints
    }
 }
 
+template <typename T>
+void
+subdividedMesh<T>::triTest(void *testControls)
+{
+  typename vector<subtri<T>*>::iterator tri;
+  for (tri = childGroup.begin(); tri != childGroup.end(); ++tri){
+    bool split = (*tri)->testSplit(pointList, testControls);
+    if(split){
+      (*tri)->insertVertNeighbors(subtriList, pointList, splitSet);
+    }else{
+      if((*tri)->splitState == NEW_TRI) (*tri)->splitState = NOT_SPLIT;
+    }
+  }
+}
+
 // this *requires* that all tris have set their N before this is called
 // this should be trivial to thread
 template <typename T>
@@ -62,11 +76,11 @@ subdividedMesh<T>::computeNormals()
   typename vector<smPoint<T>>::iterator crrPt;
   vector<unsigned int>::iterator crrTri;
   for (crrPt = pointList.begin(); crrPt != pointList.end(); ++crrPt){
-	crrPt->N = 0;
-	for (crrTri = crrPt->trisIndxs.begin(); crrTri != crrPt->trisIndxs.end(); ++crrTri){
-	  crrPt->N += subtriList[*crrTri].N;
-	}
-	crrPt->N.normalize();
+    crrPt->N = 0;
+    for (crrTri = crrPt->trisIndxs.begin(); crrTri != crrPt->trisIndxs.end(); ++crrTri){
+      crrPt->N += subtriList[*crrTri].N;
+    }
+    crrPt->N.normalize();
   }
 }
 
@@ -80,11 +94,11 @@ subdividedMesh<T>::makePoints()
   newPointsGroup.resize(0);
   unordered_set<unsigned int>::iterator crrSplit;
   for (crrSplit = splitSet.begin(); crrSplit != splitSet.end(); ++crrSplit){
-	pointList[Pcrr].loc = subtriList[*crrSplit].centerLoc(pointList);
-	newPointsGroup.push_back(Pcrr);
+    pointList[Pcrr].loc = subtriList[*crrSplit].centerLoc(pointList);
+    newPointsGroup.push_back(Pcrr);
     subtriList[*crrSplit].setChildren(Pcrr, crrChildCount, crrChildCount + 1, crrChildCount + 2);
     crrChildCount += 3;
-	Pcrr += 1;
+    Pcrr += 1;
   }
 }
 
@@ -95,7 +109,7 @@ subdividedMesh<T>::buildChildGroup()// loops over splitSet
 {
   unordered_set<unsigned int>::iterator splitTri;
   for (splitTri = splitSet.begin(); splitTri != splitSet.end(); ++splitTri){
-	subtriList[*splitTri].buildChildren(subtriList, pointList);
+    subtriList[*splitTri].buildChildren(subtriList, pointList);
   }
 }
 
@@ -110,22 +124,12 @@ subdividedMesh<T>::prepChildren()// loops over childGroup
   subtriList.resize(subtriList.size() +  (splitSet.size()*3));
   typename vector<subtri<T>*>::iterator crrChild;
   for (crrChild = childGroup.begin(); crrChild != childGroup.end(); ++crrChild){
-	*crrChild = &(subtriList[crrChildCount]);
+    *crrChild = &(subtriList[crrChildCount]);
     (*crrChild)->setIndex(crrChildCount);
     crrChildCount++;
   }
   
 }
-
-// is this necessary?
-template <typename T>
-void
-subdividedMesh<T>::initMesh(double radius)
-{
-  initTet(radius);
-  computeNormals();
-}
-
 
 template <typename T>
 void
@@ -133,8 +137,12 @@ subdividedMesh<T>::initTet(double radius)
 {
   tvec3<T> vert0(0.0,1.0,0.0);
   tvec3<T> vert1(-.94281,-1.0/3.0,0.0);
-  tvec3<T> vert2(.471405,-1.0/3.0,.816498);
-  tvec3<T> vert3(.471405,-1.0/3.0,-.816498);
+  tvec3<T> vert2(.471405,-1.0/3.0,.816498*.1);
+  tvec3<T> vert3(.471405,-1.0/3.0,-.816498*.1);
+  vert0.normalize();
+  vert1.normalize();
+  vert2.normalize();
+  vert3.normalize();
   pointList.resize(4);
   pointList[0].loc = (vert0 * radius);
   pointList[1].loc = (vert1 * radius);
@@ -146,10 +154,15 @@ subdividedMesh<T>::initTet(double radius)
   indexer1.set(1);
   indexer2.set(2);
   indexer3.set(3);
+  subtri<T> cenSource;
   subtriList[0].setup(indexer0,indexer3,indexer2,indexer1,indexer3,indexer2, 0);
+  subtriList[0].cen = cenSource.computeCenters(pointList[0].loc,pointList[3].loc,pointList[2].loc);
   subtriList[1].setup(indexer0,indexer1,indexer3,indexer2,indexer3,indexer0, 1);
+  subtriList[1].cen = cenSource.computeCenters(pointList[0].loc,pointList[1].loc,pointList[3].loc);
   subtriList[2].setup(indexer0,indexer2,indexer1,indexer0,indexer3,indexer1, 2);
+  subtriList[2].cen = cenSource.computeCenters(pointList[0].loc,pointList[2].loc,pointList[1].loc);
   subtriList[3].setup(indexer1,indexer2,indexer3,indexer2,indexer0,indexer1, 3);
+  subtriList[3].cen = cenSource.computeCenters(pointList[1].loc,pointList[2].loc,pointList[3].loc);
   pointList[0].trisIndxs.resize(3);
   pointList[0].trisIndxs[0] = 0;
   pointList[0].trisIndxs[1] = 1;
@@ -178,7 +191,6 @@ subdividedMesh<T>::initTet(double radius)
 template <typename T>
 subtri<T>::subtri()
 {
-
   neighbors[0] = neighbors[1] = neighbors[2] = 0;
   index = 0;
   splitState = NEW_TRI;
@@ -193,12 +205,12 @@ void
 subtri<T>::insertVertNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &splitSet)
 {
   for(int i = 0; i < 3; ++i){
-	smPoint<T> *crrPt = &pointList[verts[i].get()];
-	vector<unsigned int>::iterator indexIter;
-	for (indexIter = crrPt->trisIndxs.begin(); indexIter != crrPt->trisIndxs.end(); ++indexIter){
-	  subtriList[*indexIter].splitState = SPLIT;
-	  splitSet.insert(*indexIter);
-	}
+    smPoint<T> *crrPt = &pointList[verts[i].get()];
+    vector<unsigned int>::iterator indexIter;
+    for (indexIter = crrPt->trisIndxs.begin(); indexIter != crrPt->trisIndxs.end(); ++indexIter){
+      subtriList[*indexIter].splitState = SPLIT;
+      splitSet.insert(*indexIter);
+    }
   }
 }
 
@@ -214,21 +226,46 @@ subtri<T>::testSplit(vector<smPoint<T>> &pointList, double targetRadius, double 
   if(cenLoc[0]>0)mult = resmult;
   double triRadius = maxRad(pointList);
   if(triRadius > (targetRadius*mult)){
-	splitState = SPLIT;
-	return true;
+    splitState = SPLIT;
+    return true;
   }
+  return false;
+}
+
+// vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv UNUSED!!!!!!!!!!!!!!!!
+// this placeholder tests the maxradius is greater than some value.
+template <typename T>
+bool
+subtri<T>::testSplit(vector<smPoint<T>> &pointList, void *testControls)
+{
+  float *controls = (float*)testControls;
+  cout <<"control zero"<<controls[0]<<endl;
+  /*tvec3<T> cenLoc = centerLoc(pointList);
+  float mult = 1;
+  if(cenLoc[0]>0)mult = *((float*)testData);
+  double triRadius = maxRad(pointList);
+  if(triRadius > mult){
+    splitState = SPLIT;
+    return true;
+  }*/
   return false;
 }
 
 template <typename T>
 tvec3<T>
-subtri<T>::centerLoc(vector<smPoint<T>> &pointList)// THIS SHOULD BE THE INCENTER, NOT THE MEAN....
+subtri<T>::centerLoc(vector<smPoint<T>> &pointList)
 {
+  //return cen.inCenter;
   tvec3<T>  avg(0.0, 0.0, 0.0);
   for(int i=0; i<3; ++i){
     avg += pointList[verts[i].get()].loc;
   }
-  return avg / 3;
+  avg /= 3;
+  return avg;
+  //cout <<"centers:\n"<<cen.inCenter<<"\n"<<(avg/3)<<" "<<index<<endl;
+  //T randVal = (T)rand() / (T)RAND_MAX;
+  //cout <<"rv: "<<randVal<<endl;
+  //return avg.lerp(cen.inCenter, .5);
 }
 
 
@@ -270,10 +307,10 @@ subtri<T>::buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointLi
 {
   testFlip(subtriList, pointList);
   for(int i = 0; i < 3; ++i){
-	subtriList[children[i].get()].connectSubtri(index, i, subtriList, pointList);
+    subtriList[children[i].get()].connectSubtri(index, i, subtriList, pointList);
   }
   for(int i = 0; i < 3; ++i){
-	pointList[verts[i].get()].popIndex(index);
+    pointList[verts[i].get()].popIndex(index);
   }
   splitState = FINISHED;
 }
@@ -286,43 +323,70 @@ void
 subtri<T>::testFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList)
 {
   for(int i = 0; i < 3; ++i){
-    if((flipped[i] == UNKNOWN) || (flipped[i] == IS_FLIPPED)){// I suspect there is somethin wrong here
-      if(neighbors[i].is() == false){
-		flipped[i] = NOT_FLIPPED;
+   if(flipped[i] == UNKNOWN){
+      if(neighbors[i].is() == false){// this is an edge
+        // appending tris was kicked down the road to connectSubtri()...
+        tvec3<T> locations[4];
+        locations[0] = pointList[verts[i].get()].loc;
+        locations[1] = pointList[cenAddr.get()].loc;
+        locations[2] = pointList[verts[(i+1)%3].get()].loc;
+        locations[3] = (locations[0] + locations[2]) * .5;// midpoint on edge
+        triangleCenters<T> centers[4];
+        centers[0] = computeCenters(locations[0],locations[1], locations[2]);//unsplit
+        centers[1] = computeCenters(locations[0],locations[1], locations[3]);//unsplit
+        centers[2] = computeCenters(locations[3],locations[1], locations[2]);//unsplit
+        T maxRatio = 0.0;
+        int worstIndex = 0;
+        for(int centersIndex=0; centersIndex<3; ++centersIndex){
+          T ratio = centers[centersIndex].circumRadius / centers[centersIndex].inRadius;
+          if(ratio>maxRatio){
+            worstIndex = centersIndex;
+            maxRatio = ratio;
+          }
+        }
+        if(worstIndex>0){
+            flipped[i] = IS_FLIPPED;
+          }else{
+            flipped[i] = NOT_FLIPPED;
+          }
       }else{
-		if(subtriList[neighbors[i].get()].splitState != NOT_SPLIT){
-		  unsigned int indices[4];
-		  indices[0] = verts[i].get();
-		  indices[1] = cenAddr.get();
-		  indices[2] = verts[(i+1)%3].get();
-		  indices[3] = subtriList[neighbors[i].get()].cenAddr.get();
-		  
-		  triangleCenters<T> centers[4];
-		  centers[0] = computeCenters(indices[0],indices[1], indices[2],  pointList);//unflipped
-		  centers[1] = computeCenters(indices[2],indices[3], indices[0],  pointList);//unflipped
-		  centers[2] = computeCenters(indices[0],indices[1], indices[3],  pointList);//flipped
-		  centers[3] = computeCenters(indices[1],indices[2], indices[3],  pointList);//flipped
-		  T maxRatio = 0.0;
-		  int worstIndex = 0;
-		  for(int quadIndex=0; quadIndex>4;++quadIndex){
-			T ratio = centers[quadIndex].inRadius /  centers[quadIndex].circumRadius;
-			if(ratio>maxRatio){
-			  worstIndex = quadIndex;
-			  maxRatio = ratio;
-			}
-		  }
-		  if(worstIndex>1){
-			flipped[i] = NOT_FLIPPED;
-		  }else{
-			flipped[i] = IS_FLIPPED;
-		  }
-		}else{ // neighbor is not split
-		  flipped[i] = NOT_FLIPPED;
-		}
-      }
-    }
-  }  
-}
+        if(subtriList[neighbors[i].get()].splitState != NOT_SPLIT){// if we set our neighbors, this will not be needed
+          tvec3<T> locations[4];
+          locations[0] = pointList[verts[i].get()].loc;
+          locations[1] = pointList[cenAddr.get()].loc;
+          locations[2] = pointList[verts[(i+1)%3].get()].loc;
+          locations[3] = pointList[subtriList[neighbors[i].get()].cenAddr.get()].loc;
+          triangleCenters<T> centers[4];
+          centers[0] = computeCenters(locations[0],locations[1], locations[2]);//unflipped
+          centers[1] = computeCenters(locations[2],locations[3], locations[0]);//unflipped
+          centers[2] = computeCenters(locations[0],locations[1], locations[3]);//flipped
+          centers[3] = computeCenters(locations[1],locations[2], locations[3]);//flipped
+          T maxRatio = 0.0;
+          int worstIndex = 0;
+          for(int centersIndex=0; centersIndex<4; ++centersIndex){
+            T ratio = centers[centersIndex].circumRadius / centers[centersIndex].inRadius;
+            if(ratio>maxRatio){
+              worstIndex = centersIndex;
+              maxRatio = ratio;
+            }
+          }
+          int neighborindex = subtriList[neighbors[i].get()].findIndex(index);
+          if(worstIndex>1){
+            flipped[i] = NOT_FLIPPED;
+            subtriList[neighbors[i].get()].flipped[neighborindex] = NOT_FLIPPED;
+            childCen[i] = centers[0];
+            subtriList[neighbors[i].get()].childCen[neighborindex] = centers[1];
+          }else{
+            flipped[i] = IS_FLIPPED;
+            subtriList[neighbors[i].get()].flipped[neighborindex] = IS_FLIPPED;
+            childCen[i] = centers[2];
+            subtriList[neighbors[i].get()].childCen[neighborindex] = centers[3];
+          }
+        } // end neighbor is split
+      } // end else, i.e. neighbors[i].is()
+    } // end if(flipped[i] is unknown)
+  } // end for(0-3)
+} // end testFlip()
 
 // this is the doozy.
 // it is ugly, and probably should be refactored.
@@ -355,12 +419,12 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
     vert2.set(parent.cenAddr);
     neighbor0.set(edgeNeighbor.index);
     if(edgeIndex.is()){
-	  int nghParentIndx = edgeNeighbor.findIndex(parentIndex);
+      int nghParentIndx = edgeNeighbor.findIndex(parentIndex);
       if(edgeNeighbor.splitState != NOT_SPLIT ){
-		neighbor0.set(edgeNeighbor.children[nghParentIndx]);
-	  }else{
-		edgeNeighbor.neighbors[nghParentIndx].set(index);
-	  }
+        neighbor0.set(edgeNeighbor.children[nghParentIndx]);
+      }else{
+        edgeNeighbor.neighbors[nghParentIndx].set(index);
+      }
     }
     neighbor1.set(parent.children[(edgeNum+1)%3]);// should this be [(edgeNum+2)%3] ?
   }
@@ -372,6 +436,7 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
   }
   unsigned int  childIndex = index;
   subtriList[childIndex].setup(vert0, vert1, vert2, neighbor0, neighbor1, neighbor2, childIndex);
+  subtriList[childIndex].cen = parent.childCen[edgeNum];
   pointList[vert0.get()].trisIndxs.push_back(childIndex);
   pointList[vert1.get()].trisIndxs.push_back(childIndex);
   pointList[vert2.get()].trisIndxs.push_back(childIndex);
@@ -380,12 +445,9 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
 // utilities
 template <typename T>
 triangleCenters<T>
-subtri<T>::computeCenters(unsigned int indexA, unsigned int indexB, unsigned int indexC, vector<smPoint<T>> &pointList)
+subtri<T>::computeCenters(tvec3<T> A, tvec3<T> B, tvec3<T> C) 
 {
   triangleCenters<T> output;
-  tvec3<T> A = pointList[indexA].loc;
-  tvec3<T> B = pointList[indexB].loc;
-  tvec3<T> C = pointList[indexC].loc;
   tvec3<T> ABmid = (A+B)*.5;
   tvec3<T> ACmid = (A+C)*.5;
   tvec3<T> AB = B - A;
@@ -407,6 +469,7 @@ subtri<T>::computeCenters(unsigned int indexA, unsigned int indexB, unsigned int
   U = lengthAB / (semiPerimeter * 2);
   V = lengthAC / (semiPerimeter * 2);
   output.inCenter =  A + (AC * U) + (AB * V);
+  output.N = N;
   return output;
 }
 
