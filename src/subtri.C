@@ -2,7 +2,6 @@
 using namespace subTri;
 
 // to do:
-// switch from mean centers to incenters for all computation
 // run timing test in subdivide()
 // investigate threading
 // refactor connectSubtri()
@@ -16,11 +15,11 @@ subdividedMesh<T>::exampleSubdivide(int max, double targetRadius, double sphRad,
   for(int i = 0; i<max; ++i){
     exampleTriTest(targetRadius, resmult);
     if(splitSet.size() == 0)return;
-    prepChildren();// all centers needed to be set by here
+    prepChildren();
     makePoints();
     exampleMovePoints(sphRad);
     buildChildGroup();
-    splitSet.clear();// all tri-N needs to be built by this point
+    splitSet.clear();
     //computeNormals()
   }
 }
@@ -78,9 +77,9 @@ subdividedMesh<T>::computeNormals()
   for (crrPt = pointList.begin(); crrPt != pointList.end(); ++crrPt){
     crrPt->N = 0;
     for (crrTri = crrPt->trisIndxs.begin(); crrTri != crrPt->trisIndxs.end(); ++crrTri){
-      crrPt->N += subtriList[*crrTri].N;
+      crrPt->N += subtriList[*crrTri].cen.N;
     }
-    crrPt->N.normalize();
+    //crrPt->N.normalize();
   }
 }
 
@@ -184,6 +183,7 @@ subdividedMesh<T>::initTet(double radius)
   childGroup.push_back(&(subtriList[1]));
   childGroup.push_back(&(subtriList[2]));
   childGroup.push_back(&(subtriList[3]));
+  computeNormals();
 }
 
 //-----------------------------------------------------------------------------------------------------------------------
@@ -255,17 +255,12 @@ template <typename T>
 tvec3<T>
 subtri<T>::centerLoc(vector<smPoint<T>> &pointList)
 {
-  //return cen.inCenter;
-  tvec3<T>  avg(0.0, 0.0, 0.0);
+  tvec3<T>  centroid(0.0, 0.0, 0.0);
   for(int i=0; i<3; ++i){
-    avg += pointList[verts[i].get()].loc;
+    centroid += pointList[verts[i].get()].loc;
   }
-  avg /= 3;
-  return avg;
-  //cout <<"centers:\n"<<cen.inCenter<<"\n"<<(avg/3)<<" "<<index<<endl;
-  //T randVal = (T)rand() / (T)RAND_MAX;
-  //cout <<"rv: "<<randVal<<endl;
-  //return avg.lerp(cen.inCenter, .5);
+  centroid /= 3;
+  return centroid;
 }
 
 
@@ -325,7 +320,6 @@ subtri<T>::testFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList)
   for(int i = 0; i < 3; ++i){
    if(flipped[i] == UNKNOWN){
       if(neighbors[i].is() == false){// this is an edge
-        // appending tris was kicked down the road to connectSubtri()...
         tvec3<T> locations[4];
         locations[0] = pointList[verts[i].get()].loc;
         locations[1] = pointList[cenAddr.get()].loc;
@@ -423,7 +417,7 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
       if(edgeNeighbor.splitState != NOT_SPLIT ){
         neighbor0.set(edgeNeighbor.children[nghParentIndx]);
       }else{
-        edgeNeighbor.neighbors[nghParentIndx].set(index);
+        subtriList[edgeNeighbor.index].neighbors[nghParentIndx].set(index);
       }
     }
     neighbor1.set(parent.children[(edgeNum+1)%3]);// should this be [(edgeNum+2)%3] ?
@@ -437,6 +431,7 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
   unsigned int  childIndex = index;
   subtriList[childIndex].setup(vert0, vert1, vert2, neighbor0, neighbor1, neighbor2, childIndex);
   subtriList[childIndex].cen = parent.childCen[edgeNum];
+  subtriList[childIndex].parentIndex = parentIndex;
   pointList[vert0.get()].trisIndxs.push_back(childIndex);
   pointList[vert1.get()].trisIndxs.push_back(childIndex);
   pointList[vert2.get()].trisIndxs.push_back(childIndex);

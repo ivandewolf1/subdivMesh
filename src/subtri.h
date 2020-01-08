@@ -32,7 +32,6 @@ class smPoint
   //float v;
   vector <unsigned int> trisIndxs;
   void popIndex(unsigned int index){trisIndxs.erase(std::remove(trisIndxs.begin(), trisIndxs.end(), index),trisIndxs .end());}
-  //unsigned int idx;
 };
 
 class listIndex
@@ -90,11 +89,10 @@ public:
   //data 
   listIndex neighbors[3];
   unsigned int index;
+  unsigned int parentIndex;
   splitStates splitState;
   listIndex children[3];
   listIndex cenAddr;
-  tvec3<T> N;
-  //tvec3<T> cen;
   triangleCenters<T> cen;
   triangleCenters<T> childCen[3];
  
@@ -131,7 +129,7 @@ class subdividedMesh
   vector<unsigned int> newPointsGroup;
  };
  
-} // end idwTools namespace
+} // end subTri namespace
 
 
 #endif
