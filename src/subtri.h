@@ -68,14 +68,18 @@ class subtri
 public:
   subtri();
   ~subtri(){};
-  void insertVertNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &splitSet);
+  //void insertVertNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &splitSet);
   virtual bool testSplit(vector<smPoint<T>> &pointList, double radius, double resmult);
-  virtual bool testSplit(vector<smPoint<T>> &pointList, void *testControls);
-  tvec3<T> centerLoc(vector<smPoint<T>> &pointList);
+  //virtual bool testSplit(vector<smPoint<T>> &pointList, void *testControls);
+  tvec3<T> centroidLoc(vector<smPoint<T>> &pointList);
   double maxRad(vector<smPoint<T>> &pointList);
   void setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, listIndex N1, listIndex N2, unsigned int myIndex);
   void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
   void testFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  void testFlipAndTap(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &tappedList);
+  void testTapped(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &ratioList);
+  void handleBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  int flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, triangleCenters<T> centers[4], int i);
   void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
 
   // utility functions
@@ -87,6 +91,7 @@ public:
   unsigned int vertAddr(int i){return verts[i].get();}
 
   //data 
+  bool tapped;
   listIndex neighbors[3];
   unsigned int index;
   unsigned int parentIndex;
@@ -111,19 +116,20 @@ class subdividedMesh
   virtual void exampleTriTest(double targetRadius, double resmult);
   virtual void exampleMovePoints(double radius);
   
-  void triTest(void *testControls);
+  //void triTest(void *testControls);
   void makePoints();
   void buildChildGroup();
   void prepChildren();
   tvec3<T> incenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   tvec3<T> circumcenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   void computeNormals();
-  void initTet(double radius);
+  void initTet(double radius, T zscale = 1.0);
 
   vector<smPoint<T>> pointList;
   vector<subtri<T>> subtriList;
  //private:
-  unordered_set<unsigned int> splitSet;
+  vector<unsigned int> splitList;
+  //unordered_set<unsigned int> splitSet;
   vector<subtri<T>*> childGroup;
 
   vector<unsigned int> newPointsGroup;
