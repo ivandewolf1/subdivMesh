@@ -51,6 +51,7 @@ class listIndex
  enum splitStates{
    NEW_TRI,
    SPLIT,
+   FIX_SPLIT,
    NOT_SPLIT,
    FINISHED
  };
@@ -68,19 +69,16 @@ class subtri
 public:
   subtri();
   ~subtri(){};
-  //void insertVertNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &splitSet);
-  virtual bool testSplit(vector<smPoint<T>> &pointList, double radius, double resmult);
-  //virtual bool testSplit(vector<smPoint<T>> &pointList, void *testControls);
   tvec3<T> centroidLoc(vector<smPoint<T>> &pointList);
   double maxRad(vector<smPoint<T>> &pointList);
   void setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, listIndex N1, listIndex N2, unsigned int myIndex);
   void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
-  void testFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
-  void testFlipAndTap(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &tappedList);
-  void testTapped(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &ratioList);
   void handleBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
   int flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, triangleCenters<T> centers[4], int i);
   void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  void badRatioFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
+  void unsplitSplitNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
+  void splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
 
   // utility functions
   triangleCenters<T> computeCenters(tvec3<T> A, tvec3<T> B, tvec3<T> C);
@@ -112,24 +110,29 @@ class subdividedMesh
  public:
   subdividedMesh(){}
   virtual ~subdividedMesh(){}
-  virtual void exampleSubdivide(int max, double targetRadius, double sphRad, double resmult);
-  virtual void exampleTriTest(double targetRadius, double resmult);
-  virtual void exampleMovePoints(double radius);
+  //---------------------------------------------------------------------
+  void subdivide(int maxIter, T maxRatio, void *args);
+  void splitSort(void *args);
+  void flipAndFix(T maxRatio);
+  void createGeo();
+  void sew();
+  virtual bool testSplit(subtri<T> *tri, void *args) = 0;
+  virtual void movePoints(void *args) = 0;
+  vector<subtri<T>*> newTriGroup;
+  //---------------------------------------------------------------------
   
-  //void triTest(void *testControls);
-  void makePoints();
-  void buildChildGroup();
-  void prepChildren();
   tvec3<T> incenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   tvec3<T> circumcenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   void computeNormals();
-  void initTet(double radius, T zscale = 1.0);
+  void initializeTet(T radius,  tvec3<T> scale);
+  vector<smPoint<T>>* getPointList(){return &pointList;}
+  vector<subtri<T>>* getSubtriList(){return &subtriList;}
 
   vector<smPoint<T>> pointList;
   vector<subtri<T>> subtriList;
  //private:
   vector<unsigned int> splitList;
-  //unordered_set<unsigned int> splitSet;
+  vector<unsigned int> unSplitList;
   vector<subtri<T>*> childGroup;
 
   vector<unsigned int> newPointsGroup;
