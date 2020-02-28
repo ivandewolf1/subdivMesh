@@ -1,3 +1,4 @@
+
 #include <iostream>
 #include <fstream>
 #include <subtri.C>
@@ -45,7 +46,7 @@ void movePoints(void *args)
 }
 };
 
-main()
+int main()
 {
 	int maxIter = 10;
 	argsStruct<float> myArgs;
@@ -85,4 +86,5 @@ main()
 	}
 	objFile<<endl;
 	objFile.close();
+    return 0;
 }
