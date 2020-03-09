@@ -71,11 +71,11 @@ public:
   ~subtri(){};
   tvec3<T> centroidLoc(vector<smPoint<T>> &pointList);
   double maxRad(vector<smPoint<T>> &pointList);
-  void setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, listIndex N1, listIndex N2, unsigned int myIndex);
-  void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  void setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, listIndex N1, listIndex N2, unsigned int myIndex, unsigned int parentIndex, vector<subtri> &subtriList);
+  void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<subtri<T>*> &newTriGroup);
   void handleBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
   int flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, triangleCenters<T> centers[4], int i);
-  void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<subtri<T>*> &newTriGroup);
   void badRatioFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
   void unsplitSplitNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
   void splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
@@ -98,10 +98,10 @@ public:
   listIndex cenAddr;
   triangleCenters<T> cen;
   triangleCenters<T> childCen[3];
- 
-  //private:
   listIndex verts[3];
   flipStates flipped[3];
+
+  bool twoBadRatioNeighbors;
 };
 
 template <typename T>
@@ -120,7 +120,8 @@ class subdividedMesh
   virtual void movePoints(void *args) = 0;
   vector<subtri<T>*> newTriGroup;
   //---------------------------------------------------------------------
-  
+  //void printout(int iter);
+
   tvec3<T> incenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   tvec3<T> circumcenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   void computeNormals();
@@ -136,6 +137,7 @@ class subdividedMesh
   vector<subtri<T>*> childGroup;
 
   vector<unsigned int> newPointsGroup;
+  vector<unsigned int> ratioNeighborGroup;
  };
  
 } // end subTri namespace
