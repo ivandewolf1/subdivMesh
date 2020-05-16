@@ -72,13 +72,16 @@ public:
   tvec3<T> centroidLoc(vector<smPoint<T>> &pointList);
   double maxRad(vector<smPoint<T>> &pointList);
   void setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, listIndex N1, listIndex N2, unsigned int myIndex, unsigned int parentIndex, vector<subtri> &subtriList);
-  void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<subtri<T>*> &newTriGroup);
+  void buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &newTriList,vector<unsigned int> &badRatioList, T maxRatio);
   void handleBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
-  int flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, triangleCenters<T> centers[4], int i);
-  void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<subtri<T>*> &newTriGroup);
-  void badRatioFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
-  void unsplitSplitNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList);
-  void splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList);
+  int flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, array<triangleCenters<T>,4> centers, int i);
+  void connectSubtri(unsigned int  parentIndex, int edgeNum, vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &newTriList, vector<unsigned int> &badRatioList, T maxRatio);
+  void splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &additionalSplit, T maxRatio, bool addAdditional);
+
+  void get4Locations(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, int i, array<tvec3<T>,4> locations);
+  int test4Locations(array<triangleCenters<T>,4> &centers, array<tvec3<T>,4> locations);
+
+  void fixBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unsigned int newTriIdx, vector<unsigned int> &newTriList);
 
   // utility functions
   triangleCenters<T> computeCenters(tvec3<T> A, tvec3<T> B, tvec3<T> C);
@@ -86,6 +89,7 @@ public:
   int findIndex(unsigned int meshIndex);
   void setChildren(unsigned int addrIn, unsigned int A, unsigned int B, unsigned int C);
   void setIndex(unsigned int indexIn){index = indexIn;}
+  void setSplitState(splitStates stateIn){splitState = stateIn;}
   unsigned int vertAddr(int i){return verts[i].get();}
 
   //data 
@@ -101,7 +105,7 @@ public:
   listIndex verts[3];
   flipStates flipped[3];
 
-  bool twoBadRatioNeighbors;
+  //int nRatioNeighbors;
 };
 
 template <typename T>
@@ -112,15 +116,15 @@ class subdividedMesh
   virtual ~subdividedMesh(){}
   //---------------------------------------------------------------------
   void subdivide(int maxIter, T maxRatio, void *args);
-  void splitSort(void *args);
-  void flipAndFix(T maxRatio);
+  void splitSort(void *args, int iter);
+  void flipTest(T maxRatio);
   void createGeo();
-  void sew();
+  void sew(T maxRatio);
   virtual bool testSplit(subtri<T> *tri, void *args) = 0;
   virtual void movePoints(void *args) = 0;
   vector<subtri<T>*> newTriGroup;
+  vector<unsigned int> newTriList;
   //---------------------------------------------------------------------
-  //void printout(int iter);
 
   tvec3<T> incenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
   tvec3<T> circumcenter(unsigned int indexA, unsigned int indexB, unsigned int indexC, T &radius, tvec3<T> &N);
@@ -133,11 +137,9 @@ class subdividedMesh
   vector<subtri<T>> subtriList;
  //private:
   vector<unsigned int> splitList;
-  vector<unsigned int> unSplitList;
-  vector<subtri<T>*> childGroup;
+  //vector<subtri<T>*> childGroup;
 
   vector<unsigned int> newPointsGroup;
-  vector<unsigned int> ratioNeighborGroup;
  };
  
 } // end subTri namespace

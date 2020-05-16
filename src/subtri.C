@@ -10,7 +10,7 @@ printout(int iter, vector<subtri<T>> &subtriList)
   typename vector<subtri<T>>::iterator tri;
   for (tri = subtriList.begin(); tri != subtriList.end(); ++tri){
     T ratio = tri->cen.circumRadius / tri->cen.inRadius;
-    //cout<<"iter "<<iter<<" primnum: "<<primnum<<" CR: "<< tri->cen.circumRadius << " IR: "<< tri->cen.inRadius<<" ratio: "<<ratio<<endl;
+    cout<<"iter "<<iter<<" primnum: "<<primnum<<" CR: "<< tri->cen.circumRadius << " IR: "<< tri->cen.inRadius<<" ratio: "<<ratio<<endl;
     //if(primnum == 4)cout<<"iter "<<iter<<" primnum: "<<primnum<<" CR: "<< tri->cen.circumCenter << " IR: "<< tri->cen.inCenter<<" ratio: "<<ratio<<endl;
     //if(primnum == 0)cout<<"iter "<<iter<<" primnum: "<<primnum<<" CR: "<< tri->childCen[0].circumCenter << " IR: "<< tri->childCen[0].inCenter<<" ratio: "<<ratio<<endl;
     ++primnum;
@@ -30,17 +30,47 @@ template <typename T>
 void
 subdividedMesh<T>::subdivide(int maxIter, T maxRatio, void *args)
 {
+  cout<<"maxratio: "<<maxRatio<<endl;
+  for(int i = 0; i<maxIter; ++i){
+    //cout<<"subdivide 1"<<endl;
+    splitSort(args, i);
+    //cout<<"subdivide 2"<<endl;
+    if(splitList.size() == 0)return;
+    //cout<<"subdivide 3"<<endl;
+    flipTest(maxRatio);// this can append neighbors to the list if a tri is badratio
+    //cout<<"subdivide 4"<<endl;
+    createGeo();//resizeGeoArrays();
+    //cout<<"subdivide 5"<<endl;
+    movePoints(args);
+    //cout<<"subdivide 6"<<endl;
+    //splitBadNeighbors()// happens *after* move points.... 
+    //cout<<"subdivide 7"<<endl;
+    sew(maxRatio);//attachTriangles();
+    //cout<<"subdivide 8"<<endl;
+    //flipBadTris();
+    //cout<<"subdivide 9"<<endl;
+    splitList.clear();
+    //cout<<"subdivide 10"<<endl;
+    //computeNormals();
+  }
+}
+
+/*template <typename T>
+void
+subdividedMesh<T>::subdivide(int maxIter, T maxRatio, void *args)
+{
   int print = 0;
   if(print)cout<<"subdivide 0"<<endl;
   for(int i = 0; i<maxIter; ++i){
      if(print)cout<<"subdivide 1 INDEX: "<<i<<endl;
      printout(i+51, subtriList);
-    splitSort(args);
+    splitSort(args, i);
      printout(i+52, subtriList);
      if(print)cout<<"subdivide 2"<<endl;
     if(splitList.size() == 0)return;
      if(print)cout<<"subdivide 3"<<endl;
-    flipAndFix(maxRatio);
+    //flipAndFix(maxRatio);
+     flipTest(maxRatio);
      printout(i+53, subtriList);
      if(print)cout<<"subdivide 4"<<endl;
     createGeo();
@@ -59,53 +89,78 @@ subdividedMesh<T>::subdivide(int maxIter, T maxRatio, void *args)
     //printout(i);
   }
   //cout<<"subdivide 9"<<endl;
-}
+}*/
 
 template <typename T>
 void
-subdividedMesh<T>::splitSort(void *args)
+subdividedMesh<T>::splitSort(void *args, int iter)
 {
-  typename vector<subtri<T>*>::iterator tri;
-  for (tri = newTriGroup.begin(); tri != newTriGroup.end(); ++tri){
-    bool split = testSplit(*tri, args);
-    if(split){
-      (*tri)->splitState = SPLIT;
-      splitList.push_back((*tri)->index);
-    }else{
-      (*tri)->splitState = NOT_SPLIT;
-      unSplitList.push_back((*tri)->index);
+  //typename vector<subtri<T>*>::iterator tri;
+  typename vector<unsigned int>::iterator triIdx;
+  //bool dump = false;
+  //for (tri = newTriGroup.begin(); tri != newTriGroup.end(); ++tri){
+  for (triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
+    if((subtriList[*triIdx].cen.circumRadius / subtriList[*triIdx].cen.inRadius) > 10){
+      for(int i=0; i<3;++i){
+        if(subtriList[subtriList[*triIdx].neighbors[i].get()].splitState == NOT_SPLIT){
+          subtriList[subtriList[*triIdx].neighbors[i].get()].splitState = SPLIT;
+          splitList.push_back(subtriList[*triIdx].neighbors[i].get());
+        }
+      }
     }
   }
+
+
+  for (triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
+    //if(*triIdx == 166)cout<<"~~~~~~~~~~~~~   I GOT 166!!!!!!!!!!!!!!"<<endl;
+    if(subtriList[*triIdx].splitState != FINISHED){
+      //if(*triIdx == 166)cout<<" testing 166 "<<endl;
+      if(subtriList[*triIdx].splitState != NEW_TRI)cout<<" got a not new, "<<(*triIdx)<<", state: "<<subtriList[*triIdx].splitState<<endl;
+      bool split = testSplit(&(subtriList[*triIdx]), args);
+
+      if(split){
+        //if(*triIdx == 166)cout<<" 166 is split"<<endl;
+        //if(subtriList[*triIdx].index == 163)cout<<"+++++++++++++ setting 163 to SPLIT"<<endl;
+        subtriList[*triIdx].splitState = SPLIT;
+        splitList.push_back(*triIdx);
+      }else{
+        //if(*triIdx == 166)cout<<"  166  not split"<<endl;
+        //if(*triIdx == 163)cout<<"++++++++++++++ setting 163 to NOT_SPLIT "<<NOT_SPLIT<<endl;
+        subtriList[*triIdx].setSplitState(NOT_SPLIT);
+        //if(*triIdx == 163)cout<<"163 splitstate: "<< subtriList[163].splitState<<endl;
+        //if(*tri == 163)(*tri)->splitState = NOT_SPLIT;
+        //if(*tri == 163)cout<<"163 splitstate after: "<< subtriList[163].splitState<<endl;
+        //if(*tri == 163)dump=true;
+      }
+    }
+  }
+  //if(dump){
+  //  for(unsigned int i=0;i<subtriList.size();++i){
+  //    if(subtriList[i].index == 163)cout<<"+++++++ I got a 163 at "<<i<<endl;
+  //  }
+  //}
 }
+
 
 template <typename T>
 void
-subdividedMesh<T>::flipAndFix(T maxRatio)
+subdividedMesh<T>::flipTest(T maxRatio)
 {
-  int print = 0;
-
-  vector<unsigned int>::iterator crrUnSplit;
-  for (crrUnSplit = unSplitList.begin(); crrUnSplit != unSplitList.end(); ++crrUnSplit){
-    /*if(*crrUnSplit == 892){
-      print = 0;
-    }else{
-      print = 0;
-    }*/
-    //cout<<"flipAndFix 1 cr: "<< subtriList[*crrUnSplit].cen.circumRadius << " ir: "<< subtriList[*crrUnSplit].cen.inRadius<<endl;
-    T ratio = subtriList[*crrUnSplit].cen.circumRadius / subtriList[*crrUnSplit].cen.inRadius;
-    if(ratio > maxRatio && false){
-      //cout<<"hit badRatioFlip "<<endl;
-      subtriList[*crrUnSplit].badRatioFlip(subtriList, pointList, splitList);
-    }else{
-      subtriList[*crrUnSplit].unsplitSplitNeighbors(subtriList, pointList, splitList);
-    }
-    printout(62, subtriList);
-  }  
+  unordered_set<unsigned int> additionalSplit;
   vector<unsigned int>::iterator crrSplit;
   for (crrSplit = splitList.begin(); crrSplit != splitList.end(); ++crrSplit){
-    subtriList[*crrSplit].splitFlip(subtriList, pointList);
+    subtriList[*crrSplit].splitFlip(subtriList, pointList, additionalSplit, maxRatio, true);
   }
-  unSplitList.clear();
+
+  unordered_set<unsigned int>::iterator addedSplit;
+  unordered_set<unsigned int> loopSplit;
+  //for(int i=0;i<2;++i){
+    for (addedSplit = additionalSplit.begin(); addedSplit != additionalSplit.end(); ++addedSplit){
+      subtriList[*addedSplit].splitFlip(subtriList, pointList, loopSplit, maxRatio, false);
+      splitList.push_back(*addedSplit);
+    }
+    additionalSplit = loopSplit;
+  //}
 }
 
 template <typename T>
@@ -117,12 +172,15 @@ subdividedMesh<T>::createGeo()
   // create new triangles VVVVVVVVVVVVV
   subtriList.resize(subtriList.size() +  (splitList.size()*3));
   //create and fill the newtrigroup 
-  newTriGroup.clear();
-  newTriGroup.resize(splitList.size() * 3);
-  typename vector<subtri<T>*>::iterator crrNewTri;
-  for (crrNewTri = newTriGroup.begin(); crrNewTri != newTriGroup.end(); ++crrNewTri){
-    *crrNewTri = &(subtriList[newTriCounter]);
-    (*crrNewTri)->setIndex(newTriCounter);
+  //newTriGroup.clear();
+  //newTriGroup.resize(splitList.size() * 3);
+  newTriList.clear();
+  newTriList.resize(splitList.size() * 3);
+  //typename vector<subtri<T>*>::iterator crrNewTri;
+  typename vector<unsigned int>::iterator crrNewTri;
+  for (crrNewTri = newTriList.begin(); crrNewTri != newTriList.end(); ++crrNewTri){
+    *crrNewTri = newTriCounter;
+    subtriList[*crrNewTri].setIndex(newTriCounter);
     newTriCounter++;
   }
 
@@ -138,7 +196,7 @@ subdividedMesh<T>::createGeo()
   // 3. current split triangle's  children indices
   vector<unsigned int>::iterator crrSplit;
   for (crrSplit = splitList.begin(); crrSplit != splitList.end(); ++crrSplit){
-    if(Pcrr==0)cout<<"!!!!!!!!!!!!! zero point"<<endl;
+    //if(Pcrr==0)cout<<"!!!!!!!!!!!!! zero point"<<endl;
     pointList[Pcrr].loc = subtriList[*crrSplit].centroidLoc(pointList);
     newPointsGroup.push_back(Pcrr);
     subtriList[*crrSplit].setChildren(Pcrr, crrChildCount, crrChildCount + 1, crrChildCount + 2);
@@ -150,19 +208,48 @@ subdividedMesh<T>::createGeo()
 
 template <typename T>
 void
-subdividedMesh<T>::sew()
+subdividedMesh<T>::sew(T maxRatio)
 {
+  //cout<<"sew buildChildren"<<endl;
+  vector<unsigned int> badRatioList;
   vector<unsigned int>::iterator splitTri;
   for (splitTri = splitList.begin(); splitTri != splitList.end(); ++splitTri){
-     if((*splitTri) == 4)printout(-1, subtriList);
-    subtriList[*splitTri].buildChildren(subtriList, pointList, newTriGroup);
-     if((*splitTri) == 4)printout(-2, subtriList);
+    if(subtriList[*splitTri].splitState != FINISHED)
+      subtriList[*splitTri].buildChildren(subtriList, pointList, newTriList, badRatioList, maxRatio);
   }
 
-
-  // postpass, handle ratioNeighborGroup here 
-
-
+  //typename vector<subtri<T>>::iterator loopTri;
+  //for (loopTri = subtriList.begin(); loopTri != subtriList.end(); ++loopTri){
+    //if(loopTri->splitState == NEW_TRI)cout<<"before, newtri index: "<<loopTri->index<<endl;
+  //}
+  //return;
+  /*cout<<"sew resize"<<endl;
+  unsigned int newTriCounter = subtriList.size();
+  subtriList.resize(subtriList.size() +  (badRatioList.size()*2));
+  for(unsigned int newIndex = newTriCounter; newIndex < subtriList.size(); ++newIndex){
+    subtriList[newIndex].setIndex(newIndex);
+    //subtriList[newIndex].splitState = FINISHED;
+    //newTriGroup.push_back(&subtriList[newIndex]);
+  }*/
+  /*typename vector<subtri<T>*>::iterator crrNewTri = subtriList.end();
+  subtriList.resize(subtriList.size() +  (badRatioList.size()*2));
+  for (; crrNewTri != subtriList.end(); ++crrNewTri){
+    (*crrNewTri)->setIndex(newTriCounter);
+    newTriCounter++;
+  }*/
+  //for (loopTri = subtriList.begin(); loopTri != subtriList.end(); ++loopTri){
+    //if(loopTri->splitState == NEW_TRI)cout<<"after, newtri index: "<<loopTri->index<<endl;
+  //}
+  return;
+  //cout<<"sew fixBadRatio"<<endl;
+  unsigned int newTriCounter = subtriList.size();
+  vector<unsigned int>::iterator ratioTriIdx;
+  for(ratioTriIdx = badRatioList.begin(); ratioTriIdx != badRatioList.end(); ++ratioTriIdx){
+    subtriList[*ratioTriIdx].fixBadRatio(subtriList, pointList, newTriCounter, newTriList);
+    newTriCounter += 2;
+  }
+  //cout<<"sew finished"<<endl;
+  //badRatioList.clear();
 }
 
 // this *requires* that all tris have set their N before this is called
@@ -235,10 +322,10 @@ subdividedMesh<T>::initializeTet(T radius, tvec3<T> scale)
   pointList[3].trisIndxs[1] = 1;
   pointList[3].trisIndxs[2] = 3;
   // fill childGroup
-  newTriGroup.push_back(&(subtriList[0]));
-  newTriGroup.push_back(&(subtriList[1]));
-  newTriGroup.push_back(&(subtriList[2]));
-  newTriGroup.push_back(&(subtriList[3]));
+  newTriList.push_back(0);
+  newTriList.push_back(1);
+  newTriList.push_back(2);
+  newTriList.push_back(3);
   computeNormals();
   printout(50, subtriList);
 }
@@ -256,117 +343,75 @@ subtri<T>::subtri()
   verts[0] = verts[1] = verts[2] = 0;
   flipped[0] = flipped[1] = flipped[2] = UNKNOWN;
   tapped = false;
-
-  twoBadRatioNeighbors = true;
 }
 
 template <typename T>
 void
-subtri<T>::badRatioFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList)
+subtri<T>::splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unordered_set<unsigned int> &additionalSplit, T maxRatio, bool addAdditional)
 {
-  cout<<"\nbadRatioFlip 0"<<endl;
-  triangleCenters<T> centers[4];
-  int nFlipped = 0;
-  for(int i=0; i<3; ++i){
-    if(1){//flipped[i] == UNKNOWN){
-      int worstIndex = flipTester(subtriList, pointList, centers, i);
-      int neighborIndex = subtriList[neighbors[i].get()].findIndex(index);
-      cout<<index<<" "<<i<<" "<<subtriList[neighbors[i].get()].splitState<<endl;
-      /*if(worstIndex>1){
-        flipped[i] = NOT_FLIPPED;
-        subtriList[neighbors[i].get()].flipped[neighborIndex] = NOT_FLIPPED;
-        childCen[i] = centers[0];
-        subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[1];
-      }else{// if flipped
-        nFlipped += 1;
-        flipped[i] = IS_FLIPPED;
-        if((subtriList[neighbors[i].get()].splitState != SPLIT) && (subtriList[neighbors[i].get()].splitState != FIX_SPLIT)){
-          subtriList[neighbors[i].get()].splitState = FIX_SPLIT;
-        }
-        subtriList[neighbors[i].get()].flipped[neighborIndex] = IS_FLIPPED;
-        childCen[i] = centers[2];
-        subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[3];
-        splitList.push_back(neighbors[i].get());
-      }// end else, flipped */
-    }
-    if(children[i].get() == 4)printout(-9, subtriList);
-  }// end for i in 0-2
-  /*if(nFlipped > 0){// if nothing improves it, don't split it.
-    splitState = FIX_SPLIT;
-    splitList.push_back(index);
-  }*/
-  cout<<"badRatioFlip 10"<<endl;
-}
-
-template <typename T>
-void
-subtri<T>::unsplitSplitNeighbors(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &splitList)
-{
-  if(splitState == SPLIT)return;
-  triangleCenters<T> centers[4];
-  int nFlipped = 0;
-  for(int i=0; i<3;++i){
-    if(subtriList[neighbors[i].get()].splitState == SPLIT){
-      int worstIndex = flipTester(subtriList, pointList, centers, i);// <<<<<<<<<<<<<<<<< AWRY
-      int neighborIndex = subtriList[neighbors[i].get()].findIndex(index);
-      if(worstIndex>1){
-        printout(-11, subtriList);
-        flipped[i] = NOT_FLIPPED;
-        subtriList[neighbors[i].get()].flipped[neighborIndex] = NOT_FLIPPED;
-        childCen[i] = centers[0];
-        subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[1];
-      }else{// if flipped
-        printout(-12, subtriList);
-        nFlipped += 1;
-        flipped[i] = IS_FLIPPED;
-        subtriList[neighbors[i].get()].flipped[neighborIndex] = IS_FLIPPED;
-        childCen[i] = centers[2];
-        subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[3];
-        splitState = FIX_SPLIT;
-        printout(-13, subtriList);
-      }// end else, flipped 
-      printout(-14, subtriList);
-    }// end if neighbor split
-    printout(-15, subtriList);
-  }// end of for i in 0-2
-  if(nFlipped > 0){// if nothing improves it, don't split it.
-    splitList.push_back(index);
-  }
-}
-
-template <typename T>
-void
-subtri<T>::splitFlip(vector<subtri> &subtriList, vector<smPoint<T>> &pointList)
-{
+  bool builtBadRatio = false;
+  //if(index==112)cout<<"++++ splitFlip"<<endl;
   for(int i = 0; i < 3; ++i){
-    if(index==326)cout<<"checkit"<<endl;
     if(flipped[i] == UNKNOWN){
-      if(index==326)cout<<"unknown"<<endl;
       if(neighbors[i].is() == false){// this is an edge
         // edge case
       }else{// NOT an edge
-        if(subtriList[neighbors[i].get()].splitState != NOT_SPLIT){// if we set our neighbors, this will not be needed
-          triangleCenters<T> centers[4];
+        //if(index==112)cout<<"++++ splitFlip 1 "<< neighbors[i].get()<<" "<<subtriList[neighbors[i].get()].splitState<<endl;
+        //if(subtriList[neighbors[i].get()].splitState == NEW_TRI)cout<<"    SPLIT FLIP NEW_TRI !!! "<<neighbors[i].get()<<endl;
+        if((subtriList[neighbors[i].get()].splitState != NOT_SPLIT)){// if we set our neighbors, this will not be needed
+        //if((subtriList[neighbors[i].get()].splitState == SPLIT) || (subtriList[neighbors[i].get()].splitState == FIX_SPLIT)){// if we set our neighbors, this will not be needed
+          array<triangleCenters<T>,4> centers;
           int worstIndex = flipTester(subtriList, pointList, centers, i);
           int neighborIndex = subtriList[neighbors[i].get()].findIndex(index);
           
+          if(neighbors[i].get() == 309)cout<<" neighbor of 309 index: "<<index<<" worstindex: "<<worstIndex<<endl;
           if(worstIndex>1){
-            if(index == 0)printout(-13, subtriList);
+            //if(index == 0)printout(-13, subtriList);
             flipped[i] = NOT_FLIPPED;
             subtriList[neighbors[i].get()].flipped[neighborIndex] = NOT_FLIPPED;
             childCen[i] = centers[0];
             subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[1];
+            if((centers[0].circumRadius / centers[0].inRadius) > maxRatio) builtBadRatio = true;
+            if((centers[1].circumRadius / centers[1].inRadius) > maxRatio) builtBadRatio = true;
           }else{
-            if(index == 0)printout(-14, subtriList);
+            //if(index==112)cout<<"++++ splitFlip 2 "<<endl;
+            //if(index == 0)printout(-14, subtriList);
             flipped[i] = IS_FLIPPED;
             subtriList[neighbors[i].get()].flipped[neighborIndex] = IS_FLIPPED;
             childCen[i] = centers[2];
             subtriList[neighbors[i].get()].childCen[neighborIndex] = centers[3];
+            if((centers[2].circumRadius / centers[2].inRadius) > maxRatio) builtBadRatio = true;
+            if((centers[3].circumRadius / centers[3].inRadius) > maxRatio) builtBadRatio = true;
           }
         } // end neighbor is split
+        else
+        {
+          //if(neighbors[i].get() == 309)cout<<" neighbor of 309 index: "<<index<<" not split "<<addAdditional<<endl;
+          childCen[i] = computeCenters(pointList[verts[i].get()].loc, centroidLoc(pointList), pointList[verts[(i+1)%3].get()].loc);
+          if((childCen[i].circumRadius / childCen[i].inRadius) > maxRatio){
+            if(addAdditional){
+              additionalSplit.insert(neighbors[i].get());
+              //cout<<" additionalSplit insert "<<neighbors[i].get()<<endl;
+              subtriList[neighbors[i].get()].splitState=SPLIT;
+            }
+          }
+        }
       } // end else, i.e. neighbors[i].is()
     } // end if(flipped[i] is unknown)
   } // end for(0-2)
+  //if(!addAdditional)return;
+  /*if(builtBadRatio){
+    for(int i = 0; i < 3; ++i){
+      if(neighbors[i].is())
+        if(subtriList[neighbors[i].get()].splitState == NOT_SPLIT){
+          if(0){
+            additionalSplit.insert(neighbors[i].get());
+          }else{
+            cout<<"BADRATIO index: "<< index<<" NEIGHBOR: "<<neighbors[i].get()<<endl;
+          }
+        }
+    }
+  }*/
 }
 
 template <typename T>
@@ -421,12 +466,12 @@ subtri<T>::setup(listIndex vert0,listIndex vert1,listIndex vert2, listIndex N0, 
 // but it's the setup part that is most complex.
 template <typename T>
 void
-subtri<T>::buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<subtri<T>*> &newTriGroup)
+subtri<T>::buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, vector<unsigned int> &newTriList, vector<unsigned int> &badRatioList, T maxRatio)
 {
   for(int i = 0; i < 3; ++i){
-     if(children[i].get() == 4)printout(-3, subtriList);
-    subtriList[children[i].get()].connectSubtri(index, i, subtriList, pointList, newTriGroup);
-     if(children[i].get() == 4)printout(-4, subtriList);
+     //if(children[i].get() == 4)printout(-3, subtriList);
+    subtriList[children[i].get()].connectSubtri(index, i, subtriList, pointList, newTriList, badRatioList, maxRatio);
+     //if(children[i].get() == 4)printout(-4, subtriList);
   }
   for(int i = 0; i < 3; ++i){
     pointList[verts[i].get()].popIndex(index);
@@ -436,14 +481,19 @@ subtri<T>::buildChildren(vector<subtri> &subtriList, vector<smPoint<T>> &pointLi
 
 
 template <typename T>
-int
-subtri<T>::flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, triangleCenters<T> centers[4], int i)
+void
+subtri<T>::get4Locations(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, int i, array<tvec3<T>,4> locations)
 {
-  tvec3<T> locations[4];
   locations[0] = pointList[verts[i].get()].loc;
   locations[1] = centroidLoc(pointList);
   locations[2] = pointList[verts[(i+1)%3].get()].loc;
   locations[3] = subtriList[neighbors[i].get()].centroidLoc(pointList);
+}
+
+template <typename T>
+int
+subtri<T>::test4Locations(array<triangleCenters<T>,4> &centers, array<tvec3<T>,4> locations)
+{
   centers[0] = computeCenters(locations[0],locations[1], locations[2]);//unflipped
   centers[1] = computeCenters(locations[2],locations[3], locations[0]);//unflipped
   centers[2] = computeCenters(locations[0],locations[1], locations[3]);//flipped
@@ -461,6 +511,16 @@ subtri<T>::flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList,
 }
 
 
+template <typename T>
+int
+subtri<T>::flipTester(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, array<triangleCenters<T>,4> centers, int i)
+{
+  array<tvec3<T>,4> locations;
+  get4Locations(subtriList, pointList, i, locations);
+  return test4Locations(centers, locations);
+}
+
+
 // this is the doozy.
 // it is ugly, and probably should be refactored.
 template <typename T>
@@ -469,39 +529,46 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
 						int edgeNum,
 						vector<subtri> &subtriList,
 					    vector<smPoint<T>> &pointList,
-              vector<subtri<T>*> &newTriGroup
+              vector<unsigned int> &newTriList,
+              vector<unsigned int> &badRatioList,
+              T maxRatio
 						 )
 {
-  int special = 283;
-  bool print = false;
+
   listIndex vert0, vert1, vert2;
   listIndex neighbor0, neighbor1, neighbor2;
   subtri parent = subtriList[parentIndex];
   subtri edgeNeighbor =  subtriList[parent.neighbors[edgeNum].get()];
+  //if(parentIndex==112)cout<<"112: en: "<<parent.neighbors[edgeNum].get()<<" "<<index<<endl;
   subtri backNeighbor =  subtriList[parent.neighbors[(edgeNum+2)%3].get()];
   listIndex edgeIndex, backIndex;
   edgeIndex.set(parent.neighbors[edgeNum]);
   backIndex.set(parent.neighbors[(edgeNum+2)%3]);
-  if(index==special)cout<<"special 0 "<<edgeNeighbor.index<<endl;
+  //if(parentIndex==112)cout<<"112: pi: "<<
+  //if(index==213)cout<<"  213 some info "<<parent.index<<" "<<edgeNum<<" "<<edgeNeighbor.index<<endl;
   if(parent.flipped[edgeNum] == IS_FLIPPED){
     vert0.set(parent.verts[edgeNum]);
+    //if(index==213)cout<<" set 213 vert1 A to "<<edgeNeighbor.cenAddr.get()<<" enidx: "<<edgeNeighbor.index<<endl;
     vert1.set(edgeNeighbor.cenAddr);
-    if(index==special)cout<<"special 1 "<<vert1.get()<<endl;
-    //if(edgeNeighbor.cenAddr.get() == 0)cout<<"cenaddr0 idx: "<<edgeNeighbor.index<<" index: "<<index<<endl;
     vert2.set(parent.cenAddr);
     int myIndex = edgeNeighbor.findIndex(parentIndex);
     neighbor0.set(edgeNeighbor.children[(myIndex+1)%3]);
     neighbor1.set(edgeNeighbor.children[myIndex]);
+    //if(parentIndex==112)cout<<"112: A n0: "<<neighbor0.get()<<" mi: "<<myIndex<<endl;
+    //if(parentIndex==112)cout<<"112: A n1: "<<neighbor1.get()<<endl;
+    //if(parentIndex==112)cout<<"112: A en d: "<<edgeNeighbor.index<<" "<<edgeNeighbor.children[2].get()<<endl;
   }else{
     vert0.set(parent.verts[edgeNum]);
+    //if(index==213)cout<<" set 213 vert1 B to "<<parent.verts[(edgeNum+1)%3].get()<<" pidx: "<<parent.index<<endl;
     vert1.set(parent.verts[(edgeNum+1)%3]);
-    if(index==special)cout<<"special 2 "<<vert1.get()<<endl;
     vert2.set(parent.cenAddr);
     neighbor0.set(edgeNeighbor.index);
+    //if(parentIndex==112)cout<<"112: B n0: "<<neighbor0.get()<<endl;
     if(edgeIndex.is()){
       int nghParentIndx = edgeNeighbor.findIndex(parentIndex);
       if(edgeNeighbor.splitState != NOT_SPLIT ){
         neighbor0.set(edgeNeighbor.children[nghParentIndx]);
+        //if(parentIndex==112)cout<<"112: C n0: "<<neighbor0.get()<<endl;
       }else{
         subtriList[edgeNeighbor.index].neighbors[nghParentIndx].set(index);
       }
@@ -515,66 +582,156 @@ subtri<T>::connectSubtri(unsigned int  parentIndex,
     neighbor2.set(parent.children[(edgeNum+2)%3]);
   }
 
-  //unsigned int  childIndex = index;
-  //subtriList[index].setup(vert0, vert1, vert2, neighbor0, neighbor1, neighbor2, index);
-  //subtriList[childIndex].cen = parent.childCen[edgeNum];
   subtriList[index].cen = computeCenters(pointList[vert0.get()].loc, pointList[vert1.get()].loc, pointList[vert2.get()].loc);
   T ratio = subtriList[index].cen.circumRadius / subtriList[index].cen.inRadius;
-  if(ratio>10){
-    if(edgeNeighbor.splitState==NOT_SPLIT){
-
-
-      // this is where the ratioNeighborGroup should get filled
-
-
-
-        cout<<"connectSubtri bad ratio "<<index<<endl;
-        //cout<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<endl;
-      //cout<<edgeNeighbor.index<<" "<<neighbor0.get()<<endl;
-      int myIndex = edgeNeighbor.findIndex(parentIndex);
-      int farvert = (myIndex+2)%3;
-      //cout<<myIndex<<" "<<edgeNeighbor.verts[farvert].get()<<endl;
-      listIndex nVert0, nVert1, nVert2, nNgh0, nNgh1, nNgh2;
-      nVert0.set(vert0);
-      nVert1.set(edgeNeighbor.verts[farvert]);
-      nVert2.set(vert2);
-      nNgh0.set((myIndex+1)%3);
-      nNgh1.set(index);
-      nNgh2.set(neighbor2);
-        //cout<< myIndex<<" "<<nVert0.get()<<" "<<nVert1.get()<<" "<<nVert2.get()<<" "<<endl;
-        //cout<<edgeNeighbor.neighbors[myIndex].get()<<endl;
-
-      subtri<T> newTri;
-      unsigned int newIndex = subtriList.size();
-      subtriList.push_back(newTri);
-      subtriList[newIndex].cen = computeCenters(pointList[nVert0.get()].loc, pointList[nVert1.get()].loc, pointList[nVert2.get()].loc);
-      if(index==special)cout<<"special badratio new cen "<<endl;
-      subtriList[newIndex].setup(nVert0, nVert1, nVert2, nNgh0, nNgh1, nNgh2, newIndex, edgeNeighbor.index, subtriList);
-        cout<<"setupnew: "<<nVert0.get()<<" "<<nVert1.get()<<" "<<nVert2.get()<<" "<<nNgh0.get()<<" "<<nNgh1.get()<<" "<<nNgh2.get()<<"          -> "<<newIndex<<endl;
-      subtriList[newIndex].parentIndex = edgeNeighbor.index;
-      pointList[nVert0.get()].trisIndxs.push_back(newIndex);
-      pointList[nVert1.get()].trisIndxs.push_back(newIndex);
-      pointList[nVert2.get()].trisIndxs.push_back(newIndex);
-      subtriList[newIndex].splitState = NOT_SPLIT;
-      newTriGroup.push_back(&(subtriList[newIndex]));
-
-      vert0.set(edgeNeighbor.verts[farvert]);
-      neighbor0.set(edgeNeighbor.neighbors[(myIndex+2)%3]);
-      neighbor2.set(newIndex);
-      subtriList[index].cen = computeCenters(pointList[vert0.get()].loc, pointList[vert1.get()].loc, pointList[vert2.get()].loc);
-        cout<<"setup: "<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<" "<<neighbor0.get()<<" "<<neighbor1.get()<<" "<<neighbor2.get()<<" "<<index<<" "<<parentIndex<<endl;
-    }
-  }
-  if(edgeNeighbor.cenAddr.get() == 0){
-    //cout<<"cenaddr0 idx: "<<edgeNeighbor.index<<" index: "<<index<<endl;
-    cout<<vert0.get()<<" "<<vert1.get()<<" "<< vert2.get()<<" "<< neighbor0.get()<<" "<< neighbor1.get()<<" "<< neighbor2.get()<<" "<< index<<" "<< parentIndex<<" "<<edgeNeighbor.index<<endl;
-  }
+  if(ratio>maxRatio) badRatioList.push_back(index);
+  //if(parentIndex==112)cout<<"112: v: "<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<" n: "<<neighbor0.get()<<" "<<neighbor1.get()<<" "<<neighbor2.get()<<" i: "<<index<<" pi: "<<parentIndex<<endl;
+  //if(index==213)cout<<">>>>>>>>> 213: v: "<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<" n: "<<neighbor0.get()<<" "<<neighbor1.get()<<" "<<neighbor2.get()<<" i: "<<index<<" pi: "<<parentIndex<<endl;
+  //if(index==2657)cout<<">>>>>>>>> 2657: v: "<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<" n: "<<neighbor0.get()<<" "<<neighbor1.get()<<" "<<neighbor2.get()<<" i: "<<index<<" pi: "<<parentIndex<<endl;
+  if(index==2533)cout<<">>>>>>>>> 2533: v: "<<vert0.get()<<" "<<vert1.get()<<" "<<vert2.get()<<" n: "<<neighbor0.get()<<" "<<neighbor1.get()<<" "<<neighbor2.get()<<" i: "<<index<<" pi: "<<parentIndex<<endl;
   subtriList[index].setup(vert0, vert1, vert2, neighbor0, neighbor1, neighbor2, index, parentIndex, subtriList);
   subtriList[index].parentIndex = parentIndex;
   pointList[vert0.get()].trisIndxs.push_back(index);
   pointList[vert1.get()].trisIndxs.push_back(index);
   pointList[vert2.get()].trisIndxs.push_back(index);
+}
 
+
+// uuuugly uuugly 
+template <typename T>
+void
+subtri<T>::fixBadRatio(vector<subtri> &subtriList, vector<smPoint<T>> &pointList, unsigned int newTriIdx, vector<unsigned int> &newTriList) 
+{
+  cout<<" fixBadRatio 0 index: --------- "<<index<<endl;
+  if(splitState == FINISHED)return;
+  //if(newTriIdx==166)cout<<"~~~~~~~~~~~~~~ huh  "<<subtriList[newTriIdx].splitState<<endl;
+
+  //cout<<"sew resize"<<endl;
+  unsigned int newTriCounter = subtriList.size();
+  subtriList.resize(subtriList.size() + 2);
+  for(unsigned int newIndex = newTriCounter; newIndex < subtriList.size(); ++newIndex){
+    subtriList[newIndex].setIndex(newIndex);
+  }
+
+
+  array<tvec3<T>,4> locations;
+  T bestRatio = 100000;
+  int bestNeighbor, nIndx;
+  unsigned int farvert;
+  /*for(int i = 0; i < 3; ++i){
+    nIndx = subtriList[neighbors[i].get()].findIndex(index);
+    farvert = subtriList[neighbors[i].get()].verts[(nIndx+2)%3].get();
+    locations[0] = pointList[verts[(i+0)%3].get()].loc;
+    locations[1] = pointList[farvert].loc;
+    locations[2] = pointList[verts[(i+1)%3].get()].loc;
+    locations[3] = pointList[verts[(i+2)%3].get()].loc;
+    triangleCenters<T> centers0 = computeCenters(locations[1],locations[2], locations[3]);
+    triangleCenters<T> centers1 = computeCenters(locations[3],locations[0], locations[1]);
+    T ratio0 = centers0.circumRadius / centers0.inRadius;
+    T ratio1 = centers1.circumRadius / centers1.inRadius;
+    T worstOfTwo = (ratio0>ratio1 ? ratio0 : ratio1);
+    if(worstOfTwo < bestRatio){
+      bestRatio = worstOfTwo;
+      bestNeighbor = i;
+    }
+  }*/
+  T largestVal = 0;
+  for(int i = 0; i < 3; ++i){
+    if(subtriList[neighbors[i].get()].cen.inRadius > largestVal){
+      largestVal = subtriList[neighbors[i].get()].cen.inRadius;
+      bestNeighbor = i;
+    }
+  }
+  /*if(pointList.size() > 455){
+    cout<<
+    return;
+  }*/
+  //if(newTriIdx==2657)cout<<" ~~~~~~~~~~~~~~~~ handling 2657, making: "<<newTriIdx<<" and: "<<(newTriIdx+1)<<endl;
+  cout<<" fixBadRatio index: "<<index<<" parentIndex: "<<parentIndex<<" verts: "<<verts[0].get()<<" "<<verts[1].get()<<" "<<verts[2].get()<<endl;
+  nIndx = subtriList[neighbors[bestNeighbor].get()].findIndex(index);
+  //farvert = subtriList[neighbors[bestNeighbor].get()].verts[(nIndx+2)%3].get();
+  listIndex vIndex0  = verts[(bestNeighbor+0)%3];
+  listIndex vIndex1 = subtriList[neighbors[bestNeighbor].get()].verts[(nIndx+2)%3];
+  listIndex vIndex2 = verts[(bestNeighbor+1)%3];
+  listIndex vIndex3 = verts[(bestNeighbor+2)%3];
+  listIndex nIndex0 = neighbors[(bestNeighbor+2)%3];
+  listIndex nIndex1 = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+1)%3];
+  listIndex nIndex2 = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+2)%3];
+  listIndex nIndex3 = neighbors[(bestNeighbor+1)%3];
+
+  cout<<" I got " <<bestNeighbor<<" "<<neighbors[bestNeighbor].get()<<endl;
+  cout<<" triA: "<<newTriIdx<<" "<<vIndex3.get()<<" "<<vIndex0.get()<<" "<<vIndex1.get()<<" n: "<<nIndex0.get()<<" "<<nIndex1.get()<<" newguy "<<endl;
+  cout<<" triB: "<<(newTriIdx+1)<<" "<<vIndex3.get()<<" "<<vIndex1.get()<<" "<<vIndex2.get()<<" n: newguy "<<nIndex2.get()<<" "<<nIndex3.get()<<endl;
+
+  listIndex new0, new1;
+  new0.set(newTriIdx);
+  new1.set(newTriIdx + 1);
+
+  //cout<<" fixBadRatio 2"<<endl;
+  subtriList[newTriIdx].setup(vIndex3, vIndex0, vIndex1, nIndex0, nIndex1, new1, newTriIdx, -1, subtriList);
+  subtriList[newTriIdx].cen = computeCenters(pointList[vIndex3.get()].loc,pointList[vIndex0.get()].loc,pointList[vIndex1.get()].loc);
+  pointList[vIndex3.get()].popIndex(index);
+  pointList[vIndex3.get()].trisIndxs.push_back(newTriIdx);
+  pointList[vIndex0.get()].popIndex(index);
+  pointList[vIndex0.get()].trisIndxs.push_back(newTriIdx);
+  pointList[vIndex1.get()].popIndex(index);
+  pointList[vIndex1.get()].trisIndxs.push_back(newTriIdx);
+  newTriList.push_back(newTriIdx);
+  //if(newTriIdx==2657)cout<<"~~~~~~~~~~~~~~ pushing 2657 onto the list 0 "<<subtriList[newTriIdx].splitState<<endl;
+  //if(newTriIdx==3974)cout<<"~~~~~~~~~~~~~~ pushing 3974 onto the list 0 "<<subtriList[newTriIdx].splitState<<" index: "<<index<<endl;
+
+  //cout<<" fixBadRatio 3"<<endl;
+  subtriList[newTriIdx+1].setup(vIndex3, vIndex1, vIndex2, new0, nIndex2, nIndex3, newTriIdx+1, -1, subtriList);
+  subtriList[newTriIdx+1].cen = computeCenters(pointList[vIndex3.get()].loc,pointList[vIndex1.get()].loc,pointList[vIndex2.get()].loc);
+  pointList[vIndex3.get()].popIndex(neighbors[bestNeighbor].get());
+  pointList[vIndex3.get()].trisIndxs.push_back(newTriIdx+1);
+  pointList[vIndex1.get()].popIndex(neighbors[bestNeighbor].get());
+  pointList[vIndex1.get()].trisIndxs.push_back(newTriIdx+1);
+  pointList[vIndex2.get()].popIndex(neighbors[bestNeighbor].get());
+  pointList[vIndex2.get()].trisIndxs.push_back(newTriIdx+1);
+  newTriList.push_back(newTriIdx+1);
+  //if((newTriIdx+1)==2657)cout<<"~~~~~~~~~~~~~~ pushing 2657 onto the list 1 "<<subtriList[newTriIdx].splitState<<endl;
+  //if((newTriIdx+1)==3974)cout<<"~~~~~~~~~~~~~~ pushing 3974 onto the list 1 "<<subtriList[newTriIdx].splitState<<endl;
+
+  //cout<<" fixBadRatio 4"<<endl;
+  subtriList[index].splitState = FINISHED;
+  cout<<"  setting finished: "<<neighbors[bestNeighbor].get()<<endl;
+  subtriList[neighbors[bestNeighbor].get()].splitState = FINISHED;
+
+  //cout<<" fixBadRatio 5"<<endl;
+  unsigned int neighbor0, neighbor1, neighbor2, neighbor3;
+  neighbor0 = neighbors[(bestNeighbor+2)%3].get();
+  neighbor1 = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+1)%3].get();
+  neighbor2 = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+2)%3].get();
+  neighbor3 = neighbors[(bestNeighbor+1)%3].get();
+
+  //cout<<" fixBadRatio 6 index: "<<index<<" "<<subtriList.size()<< endl;
+  unsigned int n0Indx, n1Indx, n2Indx, n3Indx;
+  n0Indx = subtriList[neighbor0].findIndex(index);
+  cout<<" n0Indx: "<<neighbor0<<" "<<index<<" "<<parentIndex<<" "<<n0Indx<<" "<<subtriList[neighbor0].neighbors[0].get()<<" "<<subtriList[neighbor0].neighbors[1].get()<<" "<<subtriList[neighbor0].neighbors[2].get()<<endl;
+
+  n1Indx = subtriList[neighbor1].findIndex(neighbors[bestNeighbor].get());
+  n2Indx = subtriList[neighbor2].findIndex(neighbors[bestNeighbor].get());
+  n3Indx = subtriList[neighbor3].findIndex(index);
+
+  cout<<" fixBadRatio 7 neigh: "<<neighbor0<<" "<<neighbor1<<" "<<neighbor2<<" "<<neighbor3<<" Nindx: "<<n0Indx<<" "<<n1Indx<<" "<<n2Indx<<" "<<n3Indx<<endl;
+  /*if(pointList.size() > 455){
+    cout<<"   oh shit... "<<index<<" "<<parentIndex<<endl;
+    return;
+  }*/
+  subtriList[neighbor0].neighbors[n0Indx] = newTriIdx;
+  subtriList[neighbor1].neighbors[n1Indx] = newTriIdx;
+  subtriList[neighbor2].neighbors[n2Indx] = newTriIdx+1;
+  subtriList[neighbor3].neighbors[n3Indx] = newTriIdx+1;
+
+  cout<<" fixBadRatio 8 (finished)"<<endl;
+  //unsigned int anotherIdx = subtriList[neighbors[(bestNeighbor+2)%3].get()].findIndex(index);
+  //subtriList[neighbors[(bestNeighbor+2)%3].get()].neighbors[anotherIdx] = newTriIdx;
+  //anotherIdx = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+1)%3].findIndex(neighbors[bestNeighbor].get());
+  //subtriList[neighbors[bestNeighbor].get()].neighbors[anotherIdx] = newTriIdx;
+  //anotherIdx = subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+2)%3].findIndex(neighbors[bestNeighbor].get());
+  //anotherIdx = subtriList[neighbors[(bestNeighbor+2)%3].get()].findIndex(index);
+  //subtriList[neighbors[bestNeighbor].get()].neighbors[(nIndx+1)%3] = anotherIdx;
 
 }
 
@@ -629,4 +786,6 @@ subtri<T>::setChildren(unsigned int addrIn, unsigned int A, unsigned int B, unsi
   children[1].set(B);
   children[2].set(C);
 }
+
+
 
