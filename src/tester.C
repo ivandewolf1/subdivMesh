@@ -20,14 +20,14 @@ class testMesh : public subdividedMesh<T>
 using subdividedMesh<T>::pointList;
 using subdividedMesh<T>::subtriList;
 using subdividedMesh<T>::newPointsGroup;
-bool testSplit(subtri<T> *tri, void *args)
+bool testSplit(subtri<T> *tri, void *args)  // perhaps pass everything by const &  ?
 {
 	subtri<T> spit(*tri);
 	argsStruct<T> *myArgs = (argsStruct<T>*)args;
-  tvec3<T> cenLoc = tri->centroidLoc(pointList);
+	tvec3<T> cenLoc = tri->centroidLoc(pointList);  // cenLoc could be const but operator > does not handle it
  	float mult = 1;
 	if(cenLoc[0]>0)mult = myArgs->resmult;
-	T triRadius = tri->maxRad(pointList);
+	const T triRadius = tri->maxRad(pointList);
 	if(triRadius > (myArgs->triradius*mult)){
   	return true;
 	}

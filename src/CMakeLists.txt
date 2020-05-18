@@ -7,3 +7,4 @@ add_library( subtri SHARED
   )
 include_directories( ../../lwtv/src ../src)
 add_executable(tester tester.C)
+install(TARGETS subtri)  # adds 'make install' target

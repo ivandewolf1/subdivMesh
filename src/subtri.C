@@ -28,7 +28,7 @@ printout(int iter, vector<subtri<T>> &subtriList)
 */
 template <typename T>
 void
-subdividedMesh<T>::subdivide(int maxIter, T maxRatio, void *args)
+subdividedMesh<T>::subdivide(int maxIter, T maxRatio, void *args) // pass args const ref instead of void ?
 {
   cout<<"maxratio: "<<maxRatio<<endl;
   for(int i = 0; i<maxIter; ++i){
@@ -96,10 +96,10 @@ void
 subdividedMesh<T>::splitSort(void *args, int iter)
 {
   //typename vector<subtri<T>*>::iterator tri;
-  typename vector<unsigned int>::iterator triIdx;
+  //typename vector<unsigned int>::iterator triIdx;  // not needed - use auto instead
   //bool dump = false;
   //for (tri = newTriGroup.begin(); tri != newTriGroup.end(); ++tri){
-  for (triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
+  for (auto triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
     if((subtriList[*triIdx].cen.circumRadius / subtriList[*triIdx].cen.inRadius) > 10){
       for(int i=0; i<3;++i){
         if(subtriList[subtriList[*triIdx].neighbors[i].get()].splitState == NOT_SPLIT){
@@ -111,12 +111,12 @@ subdividedMesh<T>::splitSort(void *args, int iter)
   }
 
 
-  for (triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
+  for (auto triIdx = newTriList.begin(); triIdx != newTriList.end(); ++triIdx){
     //if(*triIdx == 166)cout<<"~~~~~~~~~~~~~   I GOT 166!!!!!!!!!!!!!!"<<endl;
     if(subtriList[*triIdx].splitState != FINISHED){
       //if(*triIdx == 166)cout<<" testing 166 "<<endl;
       if(subtriList[*triIdx].splitState != NEW_TRI)cout<<" got a not new, "<<(*triIdx)<<", state: "<<subtriList[*triIdx].splitState<<endl;
-      bool split = testSplit(&(subtriList[*triIdx]), args);
+      bool split = testSplit(&(subtriList[*triIdx]), args); // testSplit only implemented in derrived?
 
       if(split){
         //if(*triIdx == 166)cout<<" 166 is split"<<endl;
