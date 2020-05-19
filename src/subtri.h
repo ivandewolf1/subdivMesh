@@ -120,8 +120,8 @@ class subdividedMesh
   void flipTest(T maxRatio);
   void createGeo();
   void sew(T maxRatio);
-  virtual bool testSplit(subtri<T> *tri, void *args) = 0;
-  virtual void movePoints(void *args) = 0;
+  virtual bool testSplit(subtri<T> *tri, void *args) = 0;  // why virtual?
+  virtual void movePoints(void *args) = 0;  // why virtual?
   vector<subtri<T>*> newTriGroup;
   vector<unsigned int> newTriList;
   //---------------------------------------------------------------------
